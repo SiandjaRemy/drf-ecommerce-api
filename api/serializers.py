@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from store.models import Category, Product, Review, Cart, CartItem
+from store.models import Category, Product, Review, Cart, CartItem, Order, OrderItem
+from django.db import transaction
 
 
 
@@ -23,23 +24,35 @@ class AddProductSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     category = CategorySerializer()
+    review_count = serializers.SerializerMethodField(method_name="count")
     class Meta:
         model = Product
-        fields = ["id", "name", "description", "old_price", "discount", "price", "category", "inventory"]
+        fields = ["id", "name", "description", "old_price", "discount", "price", "category", "inventory", "review_count"]
+
+    def count(self, product: Product):
+        return product.reviews.all().count()
+
 
 
 ############################################### All Serializers related Reviews ###############################################
 
+class SimpleReviewSerializer(serializers.ModelSerializer):
+    author = serializers.StringRelatedField()
+    class Meta:
+        model = Review
+        fields = ["id", "author", "content", "date_created"]
+    
+
 class ReviewSerializer(serializers.ModelSerializer):
-    author_name = serializers.CharField(max_length=100)
     content = serializers.CharField(max_length=255)
     class Meta:
         model = Review
-        fields = ["id", "author_name", "content", "date_created"]
+        fields = ["id", "content", "date_created"]
     
     def create(self, validated_data):
         product_id = self.context["product_id"]
-        return Review.objects.create(product_id=product_id, **validated_data)
+        user = self.context["user"]
+        return Review.objects.create(product_id=product_id, author=user, **validated_data)
 
 
 
@@ -112,5 +125,45 @@ class CartSerializer(serializers.ModelSerializer):
         return cart.cart_items.all().count()
 
 
+############################################### All Serializers related Order items ###############################################
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = ["id", "product", "quantity"]
 
 
+
+############################################### All Serializers related Orders ###############################################
+
+class OrderSerializer(serializers.ModelSerializer):
+    order_items = OrderItemSerializer(many=True, read_only=True)
+    grand_total = serializers.SerializerMethodField(method_name="total")
+    item_count = serializers.SerializerMethodField(method_name="count")
+    class Meta:
+        model = Order
+        fields = ["id", "order_items", "item_count", "grand_total", "order_status", "creation_date"]
+    
+    def total(self, order: Order):
+        items = order.order_items.all()
+        total = sum([item.quantity * item.product.price for item in items ])
+        return total
+    
+    def count(self, order: Order):
+        return order.order_items.all().count()
+
+
+class CreateOrderSerializer(serializers.Serializer):
+    cart_id = serializers.UUIDField(default="")
+
+    def save(self, **kwargs):
+        with transaction.atomic():
+            cart_id = self.validated_data["cart_id"]
+            user_id = self.context["user_id"]
+            order = Order.objects.create(owner_id=user_id)
+
+            cart_items = CartItem.objects.filter(cart_id=cart_id)
+            order_items = [OrderItem(order_id=order.id, product=item.product, quantity=item.quantity ) for item in cart_items]
+            OrderItem.objects.bulk_create(order_items)
+            Cart.objects.get(id=cart_id).delete()
+            return order

@@ -1,6 +1,6 @@
 from typing import Iterable
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 
 from django.template.defaultfilters import slugify
 
@@ -8,6 +8,7 @@ import uuid
 
 # Create your models here.
 
+User = get_user_model()
 
 class Category(models.Model):
     id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, unique=True)
@@ -55,7 +56,7 @@ class Product(models.Model):
     
 
 class Review(models.Model):
-    author_name = models.CharField(max_length=100)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, blank=True ,null=True)
     content = models.TextField()
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
     date_created = models.DateTimeField(auto_now_add=True)
@@ -78,3 +79,35 @@ class CartItem(models.Model):
     def __str__(self):
         return f"{self.product} - {self.quantity}"
 
+
+class Order(models.Model):
+    ORDER_STATUS_CHOICES = (
+        ('PENDING', 'Pending'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+    )
+
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, unique=True)
+    creation_date = models.DateTimeField(auto_now_add=True)
+    order_status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='PENDING')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    shipping_address = models.CharField(max_length=255, blank=True, null=True)
+    payment_method = models.CharField(max_length=50, blank=True, null=True)
+    tracking_number = models.CharField(max_length=50, blank=True, null=True)
+    
+    def __str__(self):
+        return f"Order #{self.id} - {self.owner.username}"
+    
+    @property
+    def total_amount(self):
+        items = self.order_items.all()
+        total = sum([item.quantity * item.product.price for item in items ])
+        return total
+    
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="order_items")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.product} - {self.quantity}"
