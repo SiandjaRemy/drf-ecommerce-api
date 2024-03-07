@@ -27,7 +27,7 @@ This Django Rest Framework API provides functionalities for managing products, u
 
     All other endpoints can be seen on the main url
 
-  ![image](https://github.com/SiandjaRemy/drf-ecommerce-api/assets/122384822/c32164c7-5e50-4702-933d-ed6bfcd1c45c)
+![image](https://github.com/SiandjaRemy/drf-ecommerce-api/assets/122384822/388a5ab6-d840-4c65-87fd-7cbf83031fca)
 
 
 ## Setup
