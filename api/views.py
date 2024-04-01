@@ -226,7 +226,7 @@ class CartItemModelViewset(viewsets.ModelViewSet):
 
 
 class OrderModelViewset(viewsets.ModelViewSet):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user

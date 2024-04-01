@@ -1,2 +1,4 @@
 .env
 env/
+# Ignore SQLite database file
+db.sqlite3
