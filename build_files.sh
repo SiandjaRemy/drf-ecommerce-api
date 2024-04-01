@@ -1,6 +1,6 @@
 echo "BUILD START"
 
-pip install -r requirements.txt
-python3.11.7 manage.py collectstatic --noinput
+python3.11 -m pip install -r requirements.txt
+python3.11 manage.py collectstatic --noinput
 
 echo "BUILD END"
